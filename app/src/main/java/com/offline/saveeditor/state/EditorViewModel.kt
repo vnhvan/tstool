@@ -129,7 +129,7 @@ class EditorViewModel : ViewModel() {
                     val appBackup = requireNotNull(backupStore) { "BackupStore chưa được khởi tạo" }.createVerified(sourceDocument.container)
                     val written = access.writeTownshipSave(preview.payload.bytes)
                     val document = SaveRepository.open(written.bytes)
-                    require(document.coin == preview.newValue) { "Coin sau khi ghi không đúng ${preview.newValue}" }
+                    require(document.fields.coin == preview.newValue) { "Coin sau khi ghi không đúng ${preview.newValue}" }
                     preview.payload.audit?.let { audit ->
                         historyStore?.add(audit.sourceSha256, "mGameInfo.xml (direct root)", written.sha256, audit.report)
                     }
