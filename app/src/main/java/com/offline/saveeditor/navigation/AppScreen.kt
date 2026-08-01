@@ -6,6 +6,7 @@ enum class AppScreen(val title: String, val symbol: String, val showInBottomBar:
     TOOLS("Tools", "⚙"),
     SETTINGS("Settings", "☰"),
     COIN("Coin", "●", false),
+    START_DATE("Ngày tạo", "◷", false),
 }
 
 object ScreenState {

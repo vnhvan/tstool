@@ -11,6 +11,10 @@
             android:name=".coin.CoinWorkerService"
             android:exported="false"
             android:process=":coin_worker" />
+        <service
+            android:name=".startdate.StartDateWorkerService"
+            android:exported="false"
+            android:process=":start_date_worker" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

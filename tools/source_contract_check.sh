@@ -30,5 +30,10 @@ check_present 'CoinXmlBytes' 'app/src/main/java/com/offline/saveeditor/coin/Coin
 check_present 'copyTownshipSaveTo' 'app/src/main/java/com/offline/saveeditor/root/RootSaveAccess.kt' 'Root file copy avoids stdout save transfer'
 check_present 'replaceTownshipSaveFrom' 'app/src/main/java/com/offline/saveeditor/root/RootSaveAccess.kt' 'Atomic verified root replacement available'
 check_present 'withTimeout\(45_000\)' 'app/src/main/java/com/offline/saveeditor/state/EditorViewModel.kt' 'Coin worker read timeout enabled'
+check_present 'AppScreen.START_DATE -> StartDateScreen' 'app/src/main/java/com/offline/saveeditor/ui/AppShell.kt' 'Start-date screen connected'
+check_present 'android:process=":start_date_worker"' 'app/src/main/AndroidManifest.xml' 'gameStartDate worker uses isolated process'
+check_present 'gameStartDate' 'app/src/main/java/com/offline/saveeditor/startdate/StartDateXmlBytes.kt' 'gameStartDate byte field access present'
+check_present 'attachStartDateWorker' 'app/src/main/java/com/offline/saveeditor/MainActivity.kt' 'Start-date worker attached'
+check_present 'Asia/Bangkok' 'app/src/main/java/com/offline/saveeditor/startdate/StartDateTime.kt' 'Month/year conversion uses UTC+7'
 
 exit "$fail"

@@ -47,6 +47,7 @@ object HomeCatalog {
             HomeFeature("title", "Title", "Danh hiệu", "≡"),
             HomeFeature("frame", "Frame", "Khung đại diện", "▢"),
             HomeFeature("style", "Style", "Phong cách hồ sơ", "◈"),
+            HomeFeature("game_start_date", "Ngày tạo tài khoản", "Đổi gameStartDate", "◷", FeatureState.EXPERIMENTAL),
         )),
         HomeCategory("zoo", "Zoo", "Thẻ và bộ bài sở thú", "♞", listOf(
             HomeFeature("zoo_cards", "Zoo Cards", "Thẻ động vật", "♣"),

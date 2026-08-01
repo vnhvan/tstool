@@ -22,8 +22,16 @@ data class EditorSession(
     val pendingExport: ExportPayload? = null,
     val pendingEditPreview: PendingEditPreview? = null,
     val coin: CoinDirectState = CoinDirectState(),
+    val startDate: StartDateDirectState = StartDateDirectState(),
     val workspace: WorkspaceState = WorkspaceState(),
     val storage: StorageState = StorageState(),
+)
+
+data class StartDateDirectState(
+    val currentEpochSeconds: Long? = null,
+    val pendingEpochSeconds: Long? = null,
+    val sourceSha256: String? = null,
+    val rootBackupPath: String? = null,
 )
 
 data class CoinDirectState(
@@ -62,6 +70,10 @@ sealed interface EditorAction {
     data class CoinPreview(val value: Long) : EditorAction
     data class CoinWritten(val value: Long, val sha256: String, val backupPath: String, val message: String) : EditorAction
     data object CoinPreviewDiscarded : EditorAction
+    data class StartDateLoaded(val value: Long, val sha256: String, val message: String) : EditorAction
+    data class StartDatePreview(val value: Long) : EditorAction
+    data class StartDateWritten(val value: Long, val sha256: String, val backupPath: String, val message: String) : EditorAction
+    data object StartDatePreviewDiscarded : EditorAction
     data object ResetDocumentUi : EditorAction
 }
 
@@ -132,6 +144,22 @@ object EditorReducer {
             operationLabel = null,
         )
         EditorAction.CoinPreviewDiscarded -> state.copy(coin = state.coin.copy(pendingValue = null), status = "Đã hủy thay đổi Coin.")
+        is EditorAction.StartDateLoaded -> state.copy(
+            startDate = state.startDate.copy(currentEpochSeconds = action.value, pendingEpochSeconds = null, sourceSha256 = action.sha256),
+            status = action.message, busy = false, operationLabel = null,
+        )
+        is EditorAction.StartDatePreview -> state.copy(
+            startDate = state.startDate.copy(pendingEpochSeconds = action.value),
+            status = "Đã tạo bản xem trước ngày tạo.",
+        )
+        is EditorAction.StartDateWritten -> state.copy(
+            startDate = StartDateDirectState(action.value, null, action.sha256, action.backupPath),
+            status = action.message, busy = false, operationLabel = null,
+        )
+        EditorAction.StartDatePreviewDiscarded -> state.copy(
+            startDate = state.startDate.copy(pendingEpochSeconds = null),
+            status = "Đã hủy thay đổi ngày tạo.",
+        )
         EditorAction.ResetDocumentUi -> state.copy(varQuery = "", objectQuery = "", varPage = 0, objectPage = 0)
     }
 }

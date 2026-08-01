@@ -24,6 +24,7 @@ import com.offline.saveeditor.restore.RestorePipeline
 import com.offline.saveeditor.storage.RestoreRepository
 import com.offline.saveeditor.root.RootReadOnlyProbe
 import com.offline.saveeditor.coin.CoinWorkerClient
+import com.offline.saveeditor.startdate.StartDateWorkerClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,10 +45,11 @@ class EditorViewModel : ViewModel() {
     private var historyStore: HistoryRepository? = null
     private var restoreStore: RestoreRepository? = null
     private var coinWorker: CoinWorkerClient? = null
+    private var startDateWorker: StartDateWorkerClient? = null
 
-    fun attachCoinWorker(worker: CoinWorkerClient) {
-        coinWorker = worker
-    }
+    fun attachCoinWorker(worker: CoinWorkerClient) { coinWorker = worker }
+
+    fun attachStartDateWorker(worker: StartDateWorkerClient) { startDateWorker = worker }
 
     fun attachStores(backup: BackupRepository, history: HistoryRepository, restore: RestoreRepository) {
         backupStore = backup
@@ -132,6 +134,56 @@ class EditorViewModel : ViewModel() {
             } catch (_: CancellationException) {
             } catch (error: Throwable) {
                 if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Coin worker ghi thất bại: ${error.message}"))
+            }
+        }
+    }
+
+
+    fun loadStartDateFromTownship() {
+        val worker = startDateWorker ?: run { dispatch(EditorAction.Status("StartDateWorker chưa được khởi tạo.")); return }
+        val token = startOperation("Đang đọc gameStartDate trong worker riêng…")
+        activeJob = viewModelScope.launch {
+            try {
+                val result = withTimeout(45_000) { worker.inspect() }
+                if (gate.isCurrent(token)) dispatch(EditorAction.StartDateLoaded(
+                    result.epochSeconds, result.sha256, "Đã đọc ngày tạo trực tiếp từ gameStartDate."
+                ))
+            } catch (_: CancellationException) {
+            } catch (error: Throwable) {
+                if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Không đọc được gameStartDate: ${error.message}"))
+            }
+        }
+    }
+
+    fun previewStartDate(epochSeconds: Long) {
+        require(epochSeconds in 0..4_102_444_800L)
+        val current = _session.value.startDate.currentEpochSeconds ?: run {
+            dispatch(EditorAction.Status("Hãy đọc ngày tạo trước.")); return
+        }
+        if (epochSeconds == current) { dispatch(EditorAction.Status("Ngày tạo mới trùng giá trị hiện tại.")); return }
+        dispatch(EditorAction.StartDatePreview(epochSeconds))
+    }
+
+    fun discardStartDatePreview() = dispatch(EditorAction.StartDatePreviewDiscarded)
+
+    fun confirmPendingStartDateDirect() {
+        val value = _session.value.startDate.pendingEpochSeconds ?: run {
+            dispatch(EditorAction.Status("Không có ngày tạo chờ ghi.")); return
+        }
+        val worker = startDateWorker ?: run { dispatch(EditorAction.Status("StartDateWorker chưa được khởi tạo.")); return }
+        val token = startOperation("Đang backup và ghi gameStartDate…")
+        activeJob = viewModelScope.launch {
+            try {
+                val result = withTimeout(60_000) { worker.write(value) }
+                if (gate.isCurrent(token)) dispatch(EditorAction.StartDateWritten(
+                    result.epochSeconds,
+                    result.sha256,
+                    result.backupPath.orEmpty(),
+                    "Đã ghi ngày tạo và xác minh thành công. Root backup: ${result.backupPath}",
+                ))
+            } catch (_: CancellationException) {
+            } catch (error: Throwable) {
+                if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Ghi gameStartDate thất bại: ${error.message}"))
             }
         }
     }

@@ -77,12 +77,21 @@ fun OfflineEditorApp(
             when (session.screen) {
                 AppScreen.HOME -> HomeScreen(
                     onOpenModules = { viewModel.navigate(AppScreen.MODULES) },
-                    onOpenFeature = { feature -> if (feature.id == "coin") viewModel.navigate(AppScreen.COIN) else viewModel.navigate(AppScreen.MODULES) },
+                    onOpenFeature = { feature -> when (feature.id) {
+                        "coin" -> viewModel.navigate(AppScreen.COIN)
+                        "game_start_date" -> viewModel.navigate(AppScreen.START_DATE)
+                        else -> viewModel.navigate(AppScreen.MODULES)
+                    } },
                 )
-                AppScreen.MODULES -> ModulesScreen { feature -> if (feature.id == "coin") viewModel.navigate(AppScreen.COIN) }
+                AppScreen.MODULES -> ModulesScreen { feature -> when (feature.id) {
+                    "coin" -> viewModel.navigate(AppScreen.COIN)
+                    "game_start_date" -> viewModel.navigate(AppScreen.START_DATE)
+                    else -> Unit
+                } }
                 AppScreen.TOOLS -> ToolsHubScreen(session, viewModel, backupStore, historyStore, restoreStore, settings, onOpen, onCompare, onOpenBytes, onExport)
                 AppScreen.SETTINGS -> SettingsScreen(session, viewModel, settings, settingsStore, onSettingsChanged)
                 AppScreen.COIN -> CoinScreen(session, viewModel)
+                AppScreen.START_DATE -> StartDateScreen(session, viewModel)
             }
             if (session.screen == AppScreen.TOOLS || session.screen == AppScreen.SETTINGS) {
                 CrashLogPanel(session, viewModel, crashReporter, onExport)
