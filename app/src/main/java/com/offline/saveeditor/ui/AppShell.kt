@@ -82,7 +82,7 @@ fun OfflineEditorApp(
                 AppScreen.MODULES -> ModulesScreen { feature -> if (feature.id == "coin") viewModel.navigate(AppScreen.COIN) }
                 AppScreen.TOOLS -> ToolsHubScreen(session, viewModel, backupStore, historyStore, restoreStore, settings, onOpen, onCompare, onOpenBytes, onExport)
                 AppScreen.SETTINGS -> SettingsScreen(session, viewModel, settings, settingsStore, onSettingsChanged)
-                AppScreen.COIN -> CoinScreen(session, viewModel, onOpen)
+                AppScreen.COIN -> CoinScreen(session, viewModel)
             }
             if (session.screen == AppScreen.TOOLS || session.screen == AppScreen.SETTINGS) {
                 CrashLogPanel(session, viewModel, crashReporter, onExport)

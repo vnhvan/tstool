@@ -19,7 +19,6 @@ import com.offline.saveeditor.ui.components.EditPreviewCard
 fun CoinScreen(
     session: EditorSession,
     viewModel: EditorViewModel,
-    onOpen: () -> Unit,
 ) {
     val document = session.document
     val rule = EditRules.COIN
@@ -42,16 +41,19 @@ fun CoinScreen(
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Module thử nghiệm", fontWeight = FontWeight.Bold)
-                Text("Module chỉ sửa biến money, sau đó kiểm tra diff, encode và mở lại file để xác minh. Hãy backup toàn bộ save trước khi thử trên Township.")
+                Text("Ứng dụng tự force stop Township, đọc save bằng root, backup, sửa biến money, encode–verify rồi ghi trực tiếp lại đúng đường dẫn save.")
             }
         }
 
-        Button(onClick = onOpen, enabled = !session.busy, modifier = Modifier.fillMaxWidth()) {
-            Text(if (document == null) "Chọn mGameInfo.xml" else "Chọn save khác")
+        Button(onClick = viewModel::loadCoinFromTownship, enabled = !session.busy, modifier = Modifier.fillMaxWidth()) {
+            Text(if (document == null) "Đọc Coin trực tiếp từ Township" else "Đọc lại Coin từ Township")
         }
 
+        Text("Đường dẫn tự động: /data/data/com.playrix.township.vn/saves/mGameInfo.xml", style = MaterialTheme.typography.bodySmall)
+
         if (document == null) {
-            Text("Chưa mở save. Hãy chọn file mGameInfo nhị phân.")
+            Text("Chưa đọc được save. Ứng dụng sẽ yêu cầu quyền root khi bạn bấm nút trên.")
+            Text(session.status, style = MaterialTheme.typography.bodySmall)
             return@Column
         }
 
@@ -96,7 +98,7 @@ fun CoinScreen(
             EditPreviewCard(
                 preview = preview,
                 enabled = !session.busy,
-                onConfirm = viewModel::confirmPendingEditExport,
+                onConfirm = viewModel::confirmPendingCoinDirect,
                 onDiscard = viewModel::discardPendingEdit,
             )
         }

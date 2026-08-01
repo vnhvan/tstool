@@ -15,3 +15,13 @@ check_absent() {
 check_absent 'document\.source\([^K]\|$\)' 'app/src' 'No obsolete SaveDocument.source references'
 check_absent 'org\.junit\.Assert\.assertFailsWith' 'app/src/test' 'No invalid JUnit assertFailsWith imports'
 exit "$fail"
+
+grep -R "Chọn mGameInfo.xml" app/src/main/java/com/offline/saveeditor/ui/screens/CoinScreen.kt && {
+  echo "ERROR: CoinScreen must use direct root access, not file picker" >&2
+  exit 1
+} || true
+
+grep -q "RootSaveAccess" app/src/main/java/com/offline/saveeditor/state/EditorViewModel.kt || {
+  echo "ERROR: direct root save access is not connected to EditorViewModel" >&2
+  exit 1
+}
