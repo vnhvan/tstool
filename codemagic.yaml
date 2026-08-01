@@ -38,6 +38,11 @@ workflows:
           fi
           "$CM_BUILD_DIR/.ci/gradle/gradle-$GRADLE_VERSION/bin/gradle" --version
 
+      - name: Check source contracts
+        script: |
+          set -e
+          bash "$CM_BUILD_DIR/tools/source_contract_check.sh"
+
       - name: Run unit tests
         script: |
           set -e
