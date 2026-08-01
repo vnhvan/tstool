@@ -24,6 +24,23 @@ object SaveRepository {
         )
     }
 
+
+    fun openCached(container: ByteArray, decodedXml: ByteArray): SaveDocument {
+        require(container.isNotEmpty()) { "File rỗng" }
+        require(container.size <= MAX_INPUT_BYTES) { "File vượt giới hạn ${MAX_INPUT_BYTES / (1024 * 1024)} MB" }
+        require(container.firstNonWhitespaceByte() != '<'.code.toByte()) { "Workspace cần mGameInfo nhị phân" }
+        val xml = trimToRoot(decodedXml)
+        return SaveDocument(
+            container = container.copyOf(),
+            xml = xml,
+            contentSeed = MGameInfoCodec.seedFromExisting(container),
+            containerSize = container.size,
+            sha256 = sha256(container),
+            fields = SaveXmlEditor.readFields(xml),
+            sourceKind = SaveSourceKind.BINARY_CONTAINER,
+        )
+    }
+
     fun encodeAndVerify(original: SaveDocument, editedXml: ByteArray): ByteArray {
         require(original.canEncode) { "XML đã giải mã chỉ dùng để đọc; hãy mở mGameInfo nhị phân để tạo save mới" }
         val encoded = MGameInfoCodec.encode(

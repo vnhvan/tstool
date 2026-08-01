@@ -38,4 +38,8 @@ check_absent 'Chọn mGameInfo\.xml' 'app/src/main/java/com/offline/saveeditor/u
 check_present 'RootSaveAccess' 'app/src/main/java/com/offline/saveeditor/state/EditorViewModel.kt' 'Direct root access connected to EditorViewModel'
 check_present 'document\.fields\.coin' 'app/src/main/java/com/offline/saveeditor/state/EditorViewModel.kt' 'Coin verification uses SaveFields contract'
 
+check_present 'CoinWorkspaceStore' 'app/src/main/java/com/offline/saveeditor/state/EditorViewModel.kt' 'Coin workspace connected to ViewModel'
+check_present 'openCached' 'app/src/main/java/com/offline/saveeditor/model/SaveRepository.kt' 'Cached XML opens without decode'
+check_present 'readTownshipSha256' 'app/src/main/java/com/offline/saveeditor/root/RootSaveAccess.kt' 'Root SHA-256 validation available'
+
 exit "$fail"

@@ -41,7 +41,7 @@ fun CoinScreen(
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Module thử nghiệm", fontWeight = FontWeight.Bold)
-                Text("Ứng dụng tự force stop Township, đọc save bằng root, backup, sửa biến money, encode–verify rồi ghi trực tiếp lại đúng đường dẫn save.")
+                Text("Lần đầu ứng dụng tạo XML workspace từ save hiện tại. Những lần sau sẽ dùng lại workspace nếu SHA-256 của save game chưa đổi, rồi backup, sửa money, encode–verify và ghi trực tiếp.")
             }
         }
 

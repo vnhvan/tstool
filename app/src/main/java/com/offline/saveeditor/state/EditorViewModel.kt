@@ -24,6 +24,7 @@ import com.offline.saveeditor.restore.RestorePipeline
 import com.offline.saveeditor.storage.RestoreRepository
 import com.offline.saveeditor.root.RootReadOnlyProbe
 import com.offline.saveeditor.root.RootSaveAccess
+import com.offline.saveeditor.workspace.CoinWorkspaceStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -43,8 +44,12 @@ class EditorViewModel : ViewModel() {
     private var historyStore: HistoryRepository? = null
     private var restoreStore: RestoreRepository? = null
     private var rootSaveAccess: RootSaveAccess? = null
+    private var coinWorkspaceStore: CoinWorkspaceStore? = null
 
-    fun attachRootSaveAccess(access: RootSaveAccess) { rootSaveAccess = access }
+    fun attachRootSaveAccess(access: RootSaveAccess, workspaceStore: CoinWorkspaceStore) {
+        rootSaveAccess = access
+        coinWorkspaceStore = workspaceStore
+    }
 
     fun attachStores(backup: BackupRepository, history: HistoryRepository, restore: RestoreRepository) {
         backupStore = backup
@@ -100,11 +105,14 @@ class EditorViewModel : ViewModel() {
         activeJob = viewModelScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    val bytes = access.readTownshipSave(forceStop = true)
-                    val document = SaveRepository.open(bytes)
-                    document to DiagnosticsEngine.inspect(document)
+                    val workspace = requireNotNull(coinWorkspaceStore) { "CoinWorkspaceStore chưa được khởi tạo" }
+                    val loaded = workspace.load(access)
+                    Triple(loaded.document, DiagnosticsEngine.inspect(loaded.document), loaded.reused)
                 }
-                if (gate.isCurrent(token)) dispatch(EditorAction.DocumentLoaded(result.first, result.second, "Đã đọc trực tiếp ${RootSaveAccess.SAVE_FILE}."))
+                if (gate.isCurrent(token)) {
+                    val mode = if (result.third) "Đã dùng lại XML workspace; không decode lại." else "Đã tạo XML workspace mới từ save hiện tại."
+                    dispatch(EditorAction.DocumentLoaded(result.first, result.second, "$mode ${RootSaveAccess.SAVE_FILE}"))
+                }
             } catch (_: CancellationException) {
             } catch (error: Throwable) {
                 if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Không đọc được save bằng root: ${error.message}", clearDocument = true))
@@ -130,6 +138,7 @@ class EditorViewModel : ViewModel() {
                     val written = access.writeTownshipSave(preview.payload.bytes)
                     val document = SaveRepository.open(written.bytes)
                     require(document.fields.coin == preview.newValue) { "Coin sau khi ghi không đúng ${preview.newValue}" }
+                    coinWorkspaceStore?.save(document)
                     preview.payload.audit?.let { audit ->
                         historyStore?.add(audit.sourceSha256, "mGameInfo.xml (direct root)", written.sha256, audit.report)
                     }

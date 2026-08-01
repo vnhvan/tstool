@@ -23,6 +23,18 @@ class RootSaveAccess(private val context: Context) {
         return result.stdout
     }
 
+    fun readTownshipSha256(forceStop: Boolean = true): String {
+        val prefix = if (forceStop) "am force-stop $TOWNSHIP_PACKAGE >/dev/null 2>&1; " else ""
+        val command = prefix + "test -f ${shellQuote(SAVE_FILE)}; " +
+            "(sha256sum ${shellQuote(SAVE_FILE)} 2>/dev/null || toybox sha256sum ${shellQuote(SAVE_FILE)}) | awk '{print \$1}'"
+        val result = runRoot(command, 8)
+        if (result.exitCode == 0) {
+            val hash = result.stdout.toString(Charsets.UTF_8).trim().lineSequence().firstOrNull().orEmpty()
+            if (hash.matches(Regex("[0-9a-fA-F]{64}"))) return hash.lowercase()
+        }
+        return sha256(readTownshipSave(forceStop = false))
+    }
+
     fun writeTownshipSave(bytes: ByteArray): WriteResult {
         require(bytes.isNotEmpty()) { "Dữ liệu save mới rỗng" }
         val expectedHash = sha256(bytes)

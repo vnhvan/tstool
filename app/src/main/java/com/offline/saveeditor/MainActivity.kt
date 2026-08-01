@@ -14,6 +14,7 @@ import com.offline.saveeditor.state.EditorViewModel
 import com.offline.saveeditor.storage.BackupStore
 import com.offline.saveeditor.storage.HistoryStore
 import com.offline.saveeditor.root.RootSaveAccess
+import com.offline.saveeditor.workspace.CoinWorkspaceStore
 import com.offline.saveeditor.ui.OfflineEditorApp
 import com.offline.saveeditor.ui.launcher.rememberDocumentLaunchers
 import androidx.compose.runtime.*
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
         val restoreStore = RestoreStagingStore(this)
         val crashReporter = CrashReporter(this)
         val rootSaveAccess = RootSaveAccess(this)
+        val coinWorkspaceStore = CoinWorkspaceStore(this)
 
         setContent {
             ChucksOfflineTheme {
@@ -35,7 +37,7 @@ class MainActivity : ComponentActivity() {
                 val session by editorViewModel.session.collectAsStateWithLifecycle()
                 LaunchedEffect(editorViewModel) {
                     editorViewModel.attachStores(backupStore, historyStore, restoreStore)
-                    editorViewModel.attachRootSaveAccess(rootSaveAccess)
+                    editorViewModel.attachRootSaveAccess(rootSaveAccess, coinWorkspaceStore)
                 }
                 var settings by remember { mutableStateOf(initialSettings) }
                 val launchers = rememberDocumentLaunchers(
