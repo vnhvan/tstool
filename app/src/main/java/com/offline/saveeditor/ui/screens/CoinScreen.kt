@@ -10,6 +10,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.offline.saveeditor.edit.EditRules
 import com.offline.saveeditor.edit.ModulePreflightEngine
+import com.offline.saveeditor.model.SaveSourceKind
 import com.offline.saveeditor.state.EditorSession
 import com.offline.saveeditor.state.EditorViewModel
 import com.offline.saveeditor.ui.components.EditPreviewCard
@@ -57,7 +58,10 @@ fun CoinScreen(
         Card {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Save hiện tại", style = MaterialTheme.typography.titleMedium)
-                Text("Nguồn: ${document.source}")
+                Text("Nguồn: ${when (document.sourceKind) {
+                    SaveSourceKind.BINARY_CONTAINER -> "mGameInfo nhị phân"
+                    SaveSourceKind.DECODED_XML -> "XML đã giải mã"
+                }}")
                 Text("Coin hiện tại: ${preflight.currentValue ?: "không tìm thấy"}", fontWeight = FontWeight.Bold)
                 Text("Trạng thái: ${when {
                     !document.canEncode -> "Chỉ đọc — cần mGameInfo nhị phân"
