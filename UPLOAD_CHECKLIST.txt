@@ -1,0 +1,9 @@
+UPLOAD CHECKLIST
+================
+[ ] app/ nằm ở thư mục gốc repository
+[ ] build.gradle.kts nằm ở thư mục gốc
+[ ] settings.gradle.kts nằm ở thư mục gốc
+[ ] codemagic.yaml nằm ở thư mục gốc
+[ ] Không upload nguyên file ZIP
+[ ] Không có lớp thư mục lồng ngoài project
+[ ] Repository nên đặt Private
