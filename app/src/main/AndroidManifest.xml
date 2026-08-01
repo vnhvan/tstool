@@ -4,8 +4,13 @@
         android:name=".OfflineSaveEditorApp"
         android:allowBackup="false"
         android:label="Township Offline Save Editor"
+        android:largeHeap="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.OfflineSaveEditor">
+        <service
+            android:name=".coin.CoinWorkerService"
+            android:exported="false"
+            android:process=":coin_worker" />
         <activity
             android:name=".MainActivity"
             android:exported="true">

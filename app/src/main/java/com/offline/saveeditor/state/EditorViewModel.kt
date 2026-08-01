@@ -23,8 +23,7 @@ import com.offline.saveeditor.storage.HistoryRepository
 import com.offline.saveeditor.restore.RestorePipeline
 import com.offline.saveeditor.storage.RestoreRepository
 import com.offline.saveeditor.root.RootReadOnlyProbe
-import com.offline.saveeditor.root.RootSaveAccess
-import com.offline.saveeditor.workspace.CoinWorkspaceStore
+import com.offline.saveeditor.coin.CoinWorkerClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -33,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 /** Owns document, diagnostics, comparison and navigation/search state. */
 class EditorViewModel : ViewModel() {
@@ -43,12 +43,10 @@ class EditorViewModel : ViewModel() {
     private var backupStore: BackupRepository? = null
     private var historyStore: HistoryRepository? = null
     private var restoreStore: RestoreRepository? = null
-    private var rootSaveAccess: RootSaveAccess? = null
-    private var coinWorkspaceStore: CoinWorkspaceStore? = null
+    private var coinWorker: CoinWorkerClient? = null
 
-    fun attachRootSaveAccess(access: RootSaveAccess, workspaceStore: CoinWorkspaceStore) {
-        rootSaveAccess = access
-        coinWorkspaceStore = workspaceStore
+    fun attachCoinWorker(worker: CoinWorkerClient) {
+        coinWorker = worker
     }
 
     fun attachStores(backup: BackupRepository, history: HistoryRepository, restore: RestoreRepository) {
@@ -95,63 +93,45 @@ class EditorViewModel : ViewModel() {
 
     fun prepareVerifiedEdit(ruleId: String, value: Long) = prepareEdit(ruleId, value, allowCandidate = false)
 
-    fun prepareExperimentalCoin(value: Long) = prepareEdit(EditRules.COIN.id, value, allowCandidate = true)
-
     fun loadCoinFromTownship() {
-        val access = rootSaveAccess ?: run {
-            dispatch(EditorAction.Status("RootSaveAccess chưa được khởi tạo.")); return
-        }
-        val token = startOperation("Đang force stop Township và đọc Coin trực tiếp…")
+        val worker = coinWorker ?: run { dispatch(EditorAction.Status("CoinWorker chưa được khởi tạo.")); return }
+        val token = startOperation("Đang đọc Coin trong worker riêng…")
         activeJob = viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    val workspace = requireNotNull(coinWorkspaceStore) { "CoinWorkspaceStore chưa được khởi tạo" }
-                    val loaded = workspace.load(access)
-                    Triple(loaded.document, DiagnosticsEngine.inspect(loaded.document), loaded.reused)
-                }
-                if (gate.isCurrent(token)) {
-                    val mode = if (result.third) "Đã dùng lại XML workspace; không decode lại." else "Đã tạo XML workspace mới từ save hiện tại."
-                    dispatch(EditorAction.DocumentLoaded(result.first, result.second, "$mode ${RootSaveAccess.SAVE_FILE}"))
-                }
+                val result = withTimeout(45_000) { worker.inspect() }
+                if (gate.isCurrent(token)) dispatch(EditorAction.CoinLoaded(result.coin, result.sha256, "Đã đọc Coin trực tiếp bằng worker tách riêng."))
             } catch (_: CancellationException) {
             } catch (error: Throwable) {
-                if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Không đọc được save bằng root: ${error.message}", clearDocument = true))
+                if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Coin worker không đọc được save: ${error.message}"))
             }
         }
     }
 
+    fun previewCoin(value: Long) {
+        require(value in 0..2_000_000_000L)
+        val current = _session.value.coin.currentValue ?: run { dispatch(EditorAction.Status("Hãy đọc Coin trước.")); return }
+        if (value == current) { dispatch(EditorAction.Status("Coin mới trùng Coin hiện tại.")); return }
+        dispatch(EditorAction.CoinPreview(value))
+    }
+
+    fun discardCoinPreview() = dispatch(EditorAction.CoinPreviewDiscarded)
+
     fun confirmPendingCoinDirect() {
-        val preview = _session.value.pendingEditPreview?.takeIf { it.ruleId == EditRules.COIN.id } ?: run {
-            dispatch(EditorAction.Status("Không có bản Coin chờ ghi.")); return
-        }
-        val sourceDocument = _session.value.document ?: run {
-            dispatch(EditorAction.Status("Chưa có save nguồn.")); return
-        }
-        val access = rootSaveAccess ?: run {
-            dispatch(EditorAction.Status("RootSaveAccess chưa được khởi tạo.")); return
-        }
-        val token = startOperation("Đang backup, force stop và ghi Coin trực tiếp…")
+        val value = _session.value.coin.pendingValue ?: run { dispatch(EditorAction.Status("Không có Coin chờ ghi.")); return }
+        val worker = coinWorker ?: run { dispatch(EditorAction.Status("CoinWorker chưa được khởi tạo.")); return }
+        val token = startOperation("Đang backup và ghi Coin trong worker riêng…")
         activeJob = viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    val appBackup = requireNotNull(backupStore) { "BackupStore chưa được khởi tạo" }.createVerified(sourceDocument.container)
-                    val written = access.writeTownshipSave(preview.payload.bytes)
-                    val document = SaveRepository.open(written.bytes)
-                    require(document.fields.coin == preview.newValue) { "Coin sau khi ghi không đúng ${preview.newValue}" }
-                    coinWorkspaceStore?.save(document)
-                    preview.payload.audit?.let { audit ->
-                        historyStore?.add(audit.sourceSha256, "mGameInfo.xml (direct root)", written.sha256, audit.report)
-                    }
-                    Triple(document, DiagnosticsEngine.inspect(document), Pair(appBackup.created, written.rootBackupPath))
-                }
-                if (gate.isCurrent(token)) {
-                    val backupText = if (result.third.first) "đã tạo app backup" else "app backup đã tồn tại"
-                    dispatch(EditorAction.DocumentLoaded(result.first, result.second, "Đã ghi Coin trực tiếp; $backupText; root backup: ${result.third.second}"))
-                    refreshStorage()
-                }
+                val result = withTimeout(60_000) { worker.write(value) }
+                if (gate.isCurrent(token)) dispatch(EditorAction.CoinWritten(
+                    result.coin,
+                    result.sha256,
+                    result.backupPath.orEmpty(),
+                    "Đã ghi Coin và xác minh thành công. Root backup: ${result.backupPath}",
+                ))
             } catch (_: CancellationException) {
             } catch (error: Throwable) {
-                if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Ghi Coin trực tiếp thất bại: ${error.message}"))
+                if (gate.isCurrent(token)) dispatch(EditorAction.OperationFailed("Coin worker ghi thất bại: ${error.message}"))
             }
         }
     }

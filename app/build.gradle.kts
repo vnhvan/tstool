@@ -11,8 +11,8 @@ android {
         applicationId = "com.offline.saveeditor"
         minSdk = 24
         targetSdk = 35
-        versionCode = 170
-        versionName = "0.17.0-coin-workspace"
+        versionCode = 180
+        versionName = "0.18.0-coin-isolated-worker"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

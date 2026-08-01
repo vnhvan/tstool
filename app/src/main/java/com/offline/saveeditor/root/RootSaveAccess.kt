@@ -15,6 +15,43 @@ class RootSaveAccess(private val context: Context) {
         val sha256: String,
     )
 
+
+    data class ReplaceResult(
+        val rootBackupPath: String,
+        val sha256: String,
+    )
+
+    fun copyTownshipSaveTo(target: File, forceStop: Boolean = true) {
+        target.parentFile?.mkdirs()
+        // Pre-create the inode as the app user. Root writes into that inode so the worker can read it afterwards.
+        target.outputStream().use { it.flush() }
+        val prefix = if (forceStop) "am force-stop $TOWNSHIP_PACKAGE >/dev/null 2>&1; " else ""
+        val command = prefix + "test -f ${shellQuote(SAVE_FILE)}; cat ${shellQuote(SAVE_FILE)} > ${shellQuote(target.absolutePath)}; chmod 600 ${shellQuote(target.absolutePath)}; sync"
+        val result = runRoot(command, 12)
+        require(result.exitCode == 0) { result.errorMessage("Không copy được mGameInfo.xml vào workspace") }
+        require(target.isFile && target.length() > 0L) { "File workspace rỗng sau khi root copy" }
+    }
+
+    fun replaceTownshipSaveFrom(source: File, expectedSha256: String): ReplaceResult {
+        require(source.isFile && source.length() > 0L) { "File output không tồn tại hoặc rỗng" }
+        val backupPath = "$SAVE_FILE.chucks.${System.currentTimeMillis()}.bak"
+        val command = buildString {
+            append("set -e; am force-stop $TOWNSHIP_PACKAGE >/dev/null 2>&1; ")
+            append("test -f ${shellQuote(SAVE_FILE)}; ")
+            append("cp -p ${shellQuote(SAVE_FILE)} ${shellQuote(backupPath)}; ")
+            append("cat ${shellQuote(source.absolutePath)} > ${shellQuote(SAVE_FILE)}; ")
+            append("restorecon ${shellQuote(SAVE_FILE)} >/dev/null 2>&1 || true; sync")
+        }
+        val written = runRoot(command, 15)
+        require(written.exitCode == 0) { written.errorMessage("Không thể thay save Township") }
+        val actual = readTownshipSha256(forceStop = false)
+        if (actual != expectedSha256) {
+            runRoot("cp -p ${shellQuote(backupPath)} ${shellQuote(SAVE_FILE)}; restorecon ${shellQuote(SAVE_FILE)} >/dev/null 2>&1 || true; sync", 10)
+            error("SHA-256 file game không khớp; đã khôi phục root backup")
+        }
+        return ReplaceResult(backupPath, actual)
+    }
+
     fun readTownshipSave(forceStop: Boolean = true): ByteArray {
         val prefix = if (forceStop) "am force-stop $TOWNSHIP_PACKAGE >/dev/null 2>&1; " else ""
         val result = runRoot("${prefix}test -f ${shellQuote(SAVE_FILE)}; cat ${shellQuote(SAVE_FILE)}", 8)

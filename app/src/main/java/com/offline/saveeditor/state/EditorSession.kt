@@ -21,8 +21,16 @@ data class EditorSession(
     val comparisonDiff: SaveDiff? = null,
     val pendingExport: ExportPayload? = null,
     val pendingEditPreview: PendingEditPreview? = null,
+    val coin: CoinDirectState = CoinDirectState(),
     val workspace: WorkspaceState = WorkspaceState(),
     val storage: StorageState = StorageState(),
+)
+
+data class CoinDirectState(
+    val currentValue: Long? = null,
+    val pendingValue: Long? = null,
+    val sourceSha256: String? = null,
+    val rootBackupPath: String? = null,
 )
 
 sealed interface EditorAction {
@@ -50,6 +58,10 @@ sealed interface EditorAction {
     data class ShowSettings(val value: Boolean) : EditorAction
     data class StorageLoaded(val storage: StorageState, val message: String? = null) : EditorAction
     data class ExportPhaseChanged(val phase: ExportPhase, val fileName: String? = null, val message: String? = null) : EditorAction
+    data class CoinLoaded(val value: Long, val sha256: String, val message: String) : EditorAction
+    data class CoinPreview(val value: Long) : EditorAction
+    data class CoinWritten(val value: Long, val sha256: String, val backupPath: String, val message: String) : EditorAction
+    data object CoinPreviewDiscarded : EditorAction
     data object ResetDocumentUi : EditorAction
 }
 
@@ -106,6 +118,20 @@ object EditorReducer {
             storage = state.storage.copy(exportPhase = action.phase, lastExportName = action.fileName ?: state.storage.lastExportName),
             status = action.message ?: state.status,
         )
+        is EditorAction.CoinLoaded -> state.copy(
+            coin = state.coin.copy(currentValue = action.value, pendingValue = null, sourceSha256 = action.sha256),
+            status = action.message,
+            busy = false,
+            operationLabel = null,
+        )
+        is EditorAction.CoinPreview -> state.copy(coin = state.coin.copy(pendingValue = action.value), status = "Đã tạo bản xem trước Coin.")
+        is EditorAction.CoinWritten -> state.copy(
+            coin = CoinDirectState(action.value, null, action.sha256, action.backupPath),
+            status = action.message,
+            busy = false,
+            operationLabel = null,
+        )
+        EditorAction.CoinPreviewDiscarded -> state.copy(coin = state.coin.copy(pendingValue = null), status = "Đã hủy thay đổi Coin.")
         EditorAction.ResetDocumentUi -> state.copy(varQuery = "", objectQuery = "", varPage = 0, objectPage = 0)
     }
 }
